@@ -25,26 +25,30 @@ class TimeFormatter
     @tc2 = 0
     @tc2_str = nil
 
-    if format
-      if localtime
-        define_singleton_method(:format_nocache) {|time|
-          Time.at(time).strftime(format)
-        }
+    if disable_time_format
+      if format
+        if localtime
+          define_singleton_method(:format_nocache) {|time|
+            Time.at(time).strftime(format)
+          }
+        else
+          define_singleton_method(:format_nocache) {|time|
+            Time.at(time).utc.strftime(format)
+          }
+        end
       else
-        define_singleton_method(:format_nocache) {|time|
-          Time.at(time).utc.strftime(format)
-        }
+        if localtime
+          define_singleton_method(:format_nocache) {|time|
+            Time.at(time).iso8601
+          }
+        else
+          define_singleton_method(:format_nocache) {|time|
+            Time.at(time).utc.iso8601
+          }
+        end
       end
     else
-      if localtime
-        define_singleton_method(:format_nocache) {|time|
-          Time.at(time).iso8601
-        }
-      else
-        define_singleton_method(:format_nocache) {|time|
-          Time.at(time).utc.iso8601
-        }
-      end
+      time.to_s
     end
   end
 
@@ -79,6 +83,13 @@ class TimeFormatter
       @localtime = true
     elsif utc = conf['utc']
       @localtime = false
+    end
+
+    
+    if conf['disable_time_format']
+      @disable_time_format = true 
+    else
+      @disable_time_format = false
     end
 
     @timef = new(@time_format, @localtime)
