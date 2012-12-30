@@ -19,13 +19,17 @@ module Fluent
 
 
 class TimeFormatter
-  def initialize(format, localtime)
+  def initialize(format, localtime,disable_time_format=nil)
     @tc1 = 0
     @tc1_str = nil
     @tc2 = 0
     @tc2_str = nil
 
     if disable_time_format
+       define_singleton_method(:format_nocache) {|time|
+            time.to_s
+          }
+    else
       if format
         if localtime
           define_singleton_method(:format_nocache) {|time|
@@ -47,8 +51,6 @@ class TimeFormatter
           }
         end
       end
-    else
-      time.to_s
     end
   end
 
@@ -83,13 +85,6 @@ class TimeFormatter
       @localtime = true
     elsif utc = conf['utc']
       @localtime = false
-    end
-
-    
-    if conf['disable_time_format']
-      @disable_time_format = true 
-    else
-      @disable_time_format = false
     end
 
     @timef = new(@time_format, @localtime)
@@ -141,7 +136,7 @@ end
 module SetTimeKeyMixin
   include RecordFilterMixin
 
-  attr_accessor :include_time_key, :time_key, :localtime
+  attr_accessor :include_time_key, :time_key, :localtime, :disable_time_format
 
   def configure(conf)
     super
@@ -174,7 +169,13 @@ module SetTimeKeyMixin
         @localtime = false
       end
 
-      @timef = TimeFormatter.new(@time_format, @localtime)
+      if conf['disable_time_format']
+        @disable_time_format = true 
+      else
+        @disable_time_format = false
+      end
+
+      @timef = TimeFormatter.new(@time_format, @localtime,@disable_time_format)
 
     else
       @include_time_key = false

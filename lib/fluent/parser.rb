@@ -23,6 +23,7 @@ class TextParser
     include Configurable
 
     config_param :time_format, :string, :default => nil
+    config_param :disable_time_format, :string, :default => nil
 
     def initialize(regexp, conf={})
       super()
@@ -96,6 +97,7 @@ class TextParser
     config_param :keys, :string
     config_param :time_key, :string, :default => nil
     config_param :time_format, :string, :default => nil
+    config_param :disable_time_format, :string, :default => nil
 
     def configure(conf)
       super
@@ -131,6 +133,7 @@ class TextParser
 
   class TSVParser < ValuesParser
     config_param :delimiter, :string, :default => "\t"
+    config_param :disable_time_format, :string, :default => nil
 
     def call(text)
       return values_map(text.split(@delimiter))
