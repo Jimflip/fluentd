@@ -68,7 +68,7 @@ class TextParser
 
     config_param :time_key, :string, :default => 'time'
     config_param :time_format, :string, :default => nil
-    config_param :disable_time_format, :boolean, :default => false
+    config_param :disable_time_format, :string, :default => nil
 
     def call(text)
       record = Yajl.load(text)
