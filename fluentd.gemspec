@@ -14,7 +14,6 @@ Gem::Specification.new do |s|
   s.executables = ["fluentd", "fluent-cat", "fluent-gem"]
   s.extra_rdoc_files = [
     "ChangeLog",
-    "README",
     "README.rdoc"
   ]
   s.files = [
