@@ -468,11 +468,15 @@ class TimeSlicedOutput < BufferedOutput
 
     if @localtime
       @time_slicer = Proc.new {|time|
-        Time.at(time).strftime(@time_slice_format)
+        #JB our time is coming in as epoch
+        #todo make configurable
+        Time.at(time).to_datetime.strftime(@time_slice_format)
       }
     else
       @time_slicer = Proc.new {|time|
-        Time.at(time).utc.strftime(@time_slice_format)
+      #JB our time is coming in as epoch
+        #todo make configurable
+        Time.at(time).utc.to_datetime.strftime(@time_slice_format)
       }
     end
 
@@ -505,6 +509,8 @@ class TimeSlicedOutput < BufferedOutput
 
   def emit(tag, es, chain)
     es.each {|time,record|
+      time = time / 1000 #JB we are using millisec epoch
+      #todo : make this configurable
       tc = time / @time_slice_cache_interval
       if @before_tc == tc
         key = @before_key
