@@ -109,7 +109,7 @@ class TextParser
       end
 
       if @time_format && !@time_key
-        $log.warn "time_format parameter is ignored because time_key parameter is not set"
+        raise ConfigError, "time_format parameter is ignored because time_key parameter is not set. at #{conf.inspect}"
       end
     end
 
@@ -117,7 +117,7 @@ class TextParser
       record = Hash[keys.zip(values)]
 
       if @time_key
-        value = record[@time_key]
+        value = record.delete(@time_key)
         if @time_format
           time = Time.strptime(value, @time_format).to_i
         else
@@ -137,6 +137,30 @@ class TextParser
 
     def call(text)
       return values_map(text.split(@delimiter))
+    end
+  end
+
+  class LabeledTSVParser < ValuesParser
+    config_param :delimiter,       :string, :default => "\t"
+    config_param :label_delimiter, :string, :default =>  ":"
+    config_param :time_key, :string, :default =>  "time"
+
+    def configure(conf)
+      conf['keys'] = conf['time_key'] || 'time'
+      super(conf)
+    end
+
+    def call(text)
+      @keys  = []
+      values = []
+
+      text.split(delimiter).each do |pair|
+        key, value = pair.split(label_delimiter, 2)
+        @keys.push(key)
+        values.push(value)
+      end
+
+      return values_map(values)
     end
   end
 
@@ -208,8 +232,9 @@ class TextParser
     'syslog' => Proc.new { RegexpParser.new(/^(?<time>[^ ]*\s*[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?[^\:]*\: *(?<message>.*)$/, {'time_format'=>"%b %d %H:%M:%S"}) },
     'json' => Proc.new { JSONParser.new },
     'tsv' => Proc.new { TSVParser.new },
+    'ltsv' => Proc.new { LabeledTSVParser.new },
     'csv' => Proc.new { CSVParser.new },
-    'nginx' => Proc.new { RegexpParser.new(/^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^ ]*) +\S*)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$/,  {'time_format'=>"%d/%b/%Y:%H:%M:%S %z"}) },
+    'nginx' => Proc.new { RegexpParser.new(/^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*) +\S*)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$/,  {'time_format'=>"%d/%b/%Y:%H:%M:%S %z"}) },
   }
 
   def self.register_template(name, regexp_or_proc, time_format=nil)

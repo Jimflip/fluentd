@@ -1,4 +1,34 @@
 
+Release 0.10.33 - 2013/03/28
+
+* added in_monitor_agent
+* switched from jeweler to bundler
+* updated dependency for msgpack from '~> 0.4.4' to '~> 0.4.4 OR ~> 0.5.4'
+* added PluginId module so that in_monitor_agent can search plugins by id
+* BufferedOutput: added queued_chunk_flush_interval option to insert delay
+time before flushing queued chunks
+* BufferedOutput: randomize retry interval to prevent multiple servers from
+bursting network traffic at the same time
+* Configurable: sets @config instance variable
+
+
+Release 0.10.32 - 2013/03/04
+
+* in_tail: fixed the nil error problem which occurs with pos_file option
+* TextParser/in_tail: supports 'ltsv' (Labeled Tab-Separated Values) format: http://ltsv.org
+* #105: TextParser/in_tail: fixed 'nginx' format
+* #102: show log level in log messages
+* Gemfile: uses https source of rubygems instead of http
+
+
+Release 0.10.31 - 2013/01/31
+
+* out_forward: supports TCP heartbeat
+* in_tail reads rotated files from its head rather than its end when pos_file option is set
+* out_/in_ forward set O_NONBLOCK flag to the UDP heartbeat socket
+* Improved match cache expiration algorithm
+
+
 Release 0.10.30 - 2012/12/06
 
 * Shows configuration file at start time

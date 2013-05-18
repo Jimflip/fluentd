@@ -48,6 +48,7 @@ end
 
 class Output
   include Configurable
+  include PluginId
 
   def initialize
     super
@@ -141,19 +142,8 @@ class OutputThread
     }
   end
 
-  if ConditionVariable.new.method(:wait).arity == 1
-    $log.warn "WARNING: Running on Ruby 1.8. Ruby 1.9 is recommended."
-    require 'timeout'
-    def cond_wait(sec)
-      Timeout.timeout(sec) {
-        @cond.wait(@mutex)
-      }
-    rescue Timeout::Error
-    end
-  else
-    def cond_wait(sec)
-      @cond.wait(@mutex, sec)
-    end
+  def cond_wait(sec)
+    @cond.wait(@mutex, sec)
   end
 end
 
@@ -175,6 +165,7 @@ class BufferedOutput < Output
   config_param :retry_limit, :integer, :default => 17
   config_param :retry_wait, :time, :default => 1.0
   config_param :num_threads, :integer, :default => 1
+  config_param :queued_chunk_flush_interval, :time, :default => 1
 
   def configure(conf)
     super
@@ -312,7 +303,7 @@ class BufferedOutput < Output
       end
 
       if has_next
-        return time  # call try_flush soon
+        return Engine.now + @queued_chunk_flush_interval
       else
         return time + 1  # TODO 1
       end
@@ -333,20 +324,20 @@ class BufferedOutput < Output
       end
 
       if error_count < @retry_limit
-        $log.warn "temporarily failed to flush the buffer, next retry will be at #{Time.at(@next_retry_time)}.", :error=>e.to_s, :instance=>object_id
+        $log.warn "temporarily failed to flush the buffer.", :next_retry=>Time.at(@next_retry_time), :error_class=>e.class.to_s, :error=>e.to_s, :instance=>object_id
         $log.warn_backtrace e.backtrace
 
       elsif @secondary
         if error_count == @retry_limit
-          $log.warn "failed to flush the buffer.", :error=>e.to_s, :instance=>object_id
+          $log.warn "failed to flush the buffer.", :error_class=>e.class.to_s, :error=>e.to_s, :instance=>object_id
           $log.warn "retry count exceededs limit. falling back to secondary output."
           $log.warn_backtrace e.backtrace
           retry  # retry immediately
         elsif error_count <= @retry_limit + @secondary_limit
-          $log.warn "failed to flush the buffer, next retry will be with secondary output at #{Time.at(@next_retry_time)}.", :error=>e.to_s, :instance=>object_id
+          $log.warn "failed to flush the buffer, next retry will be with secondary output.", :next_retry=>Time.at(@next_retry_time), :error_class=>e.class.to_s, :error=>e.to_s, :instance=>object_id
           $log.warn_backtrace e.backtrace
         else
-          $log.warn "failed to flush the buffer.", :error=>e.to_s, :instance=>object_id
+          $log.warn "failed to flush the buffer.", :error_class=>e.class, :error=>e.to_s, :instance=>object_id
           $log.warn "secondary retry count exceededs limit."
           $log.warn_backtrace e.backtrace
           write_abort
@@ -354,7 +345,7 @@ class BufferedOutput < Output
         end
 
       else
-        $log.warn "failed to flush the buffer.", :error=>e.to_s, :instance=>object_id
+        $log.warn "failed to flush the buffer.", :error_class=>e.class.to_s, :error=>e.to_s, :instance=>object_id
         $log.warn "retry count exceededs limit."
         $log.warn_backtrace e.backtrace
         write_abort
@@ -381,12 +372,13 @@ class BufferedOutput < Output
 
   def calc_retry_wait
     # TODO retry pattern
-    if @error_history.size <= @retry_limit
-      @retry_wait * (2 ** (@error_history.size-1))
-    else
-      # secondary retry
-      @retry_wait * (2 ** (@error_history.size-2-@retry_limit))
-    end
+    wait = if @error_history.size <= @retry_limit
+             @retry_wait * (2 ** (@error_history.size-1))
+           else
+             # secondary retry
+             @retry_wait * (2 ** (@error_history.size-2-@retry_limit))
+           end
+    wait + (rand * (wait / 4.0) - (wait / 8.0))
   end
 
   def write_abort
